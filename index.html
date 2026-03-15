@@ -33,65 +33,105 @@
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
   .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
   /* ── MOBİL ── */
+  /* ── VIEWPORT & BOX MODEL ─────────────────────────────────────────────────── */
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  img,svg,video{max-width:100%;}
+
   @media(max-width:700px){
     /* Header */
     header{padding:10px 12px;flex-direction:column;align-items:flex-start;gap:8px;}
-    .logo{font-size:22px;}
+    .logo{font-size:20px;}
     nav{width:100%;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;}
-    nav button{font-size:11px;padding:7px 4px;text-align:center;border-radius:6px;background:var(--bg3);}
+    nav button{font-size:10px;padding:7px 2px;text-align:center;border-radius:6px;background:var(--bg3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     nav button.active{background:var(--green-dim);}
 
     /* Layout */
-    main{padding:12px 10px;}
+    main{padding:10px 8px;}
     .grid2,.grid3{grid-template-columns:1fr;}
-    .card{padding:14px;}
+    .card{padding:12px;}
+    .section-title{font-size:16px;}
 
     /* Giriş ekranı */
-    .admin-box{padding:24px 16px;}
+    .admin-box{padding:24px 16px;width:calc(100% - 32px);max-width:100%;}
     .admin-tabs{flex-wrap:wrap;}
 
     /* Oyuncu seçici */
-    #player-selector{grid-template-columns:repeat(2,1fr) !important;max-height:320px;}
+    #player-selector{grid-template-columns:repeat(2,1fr) !important;max-height:300px;}
+    .player-card{padding:8px 10px;}
+
+    /* Takım kurma butonları */
+    #ai-build-btn, .btn.accent, .btn.secondary{font-size:12px;padding:8px 10px;}
 
     /* Takım kartları */
     .team-card{padding:12px;}
-    .team-name{font-size:16px;flex-direction:column;align-items:flex-start;gap:4px;}
-    .player-row{font-size:12px;gap:4px;}
+    .team-name{font-size:15px;flex-direction:column;align-items:flex-start;gap:4px;}
+    .player-row{font-size:12px;gap:4px;padding:6px 8px;}
+
+    /* Form row */
+    .form-row{flex-direction:column;}
+    .form-group{min-width:unset;width:100%;}
 
     /* Tablo */
     .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
-    table{font-size:12px;}
-    th,td{padding:7px 8px;}
+    table{font-size:11px;}
+    th,td{padding:6px 6px;white-space:nowrap;}
 
     /* Skor kutusu */
-    .score-input-wrap{gap:10px;}
-    .score-box{width:60px;height:60px;font-size:34px;}
+    .score-input-wrap{gap:8px;}
+    .score-box{width:56px;height:56px;font-size:30px;}
 
     /* Profil */
-    .profile-header{padding:16px;gap:12px;}
-    .profile-avatar{width:56px;height:56px;font-size:22px;}
-    .profile-info h2{font-size:22px;}
+    .profile-header{padding:14px;gap:10px;flex-direction:column;text-align:center;}
+    .profile-avatar{width:54px;height:54px;font-size:20px;}
+    .profile-info h2{font-size:20px;}
     .profile-stats-grid{grid-template-columns:repeat(2,1fr);gap:8px;}
-    .profile-stat-box{padding:12px 8px;}
-    .profile-stat-box .val{font-size:24px;}
-    .form-dot{width:26px;height:26px;font-size:11px;}
+    .profile-stat-box{padding:10px 6px;}
+    .profile-stat-box .val{font-size:22px;}
+    .form-dot{width:24px;height:24px;font-size:10px;}
+    .profile-skill-bar{max-width:100%;}
+    .profile-skill-row{flex-wrap:wrap;}
 
     /* Bekleyen kadro */
     #pending-teams-display .grid2-inner{grid-template-columns:1fr !important;}
 
     /* Stat kutuları */
-    .stat-box .val{font-size:28px;}
+    .stat-box .val{font-size:26px;}
+    .stat-box{padding:12px 8px;}
 
     /* Butonlar */
-    .btn{font-size:13px;padding:9px 14px;}
-    .modal{padding:20px 14px;margin:0 10px;}
+    .btn{font-size:12px;padding:8px 12px;}
+    .modal{padding:18px 12px;margin:0 8px;width:calc(100% - 16px);max-width:100%;}
+
+    /* Etkinlik */
+    .event-card{padding:14px;}
+    .event-time{font-size:26px;}
+    .rsvp-btn{padding:9px 18px;font-size:13px;}
+    .attendee-chip{font-size:11px;padding:2px 8px;}
+
+    /* Dashboard lider listesi */
+    #top-skill-list, #top-pts-list{font-size:13px;}
+
+    /* Son maçlar */
+    .match-score{font-size:15px;}
+
+    /* Flex-between */
+    .flex-between{flex-wrap:wrap;gap:6px;}
   }
+
   @media(max-width:600px){
     .hide-sm{display:none;}
+    table{font-size:10px;}
+    th,td{padding:5px 4px;}
   }
+
   @media(max-width:400px){
     nav{grid-template-columns:repeat(2,1fr);}
     #player-selector{grid-template-columns:1fr !important;}
+    .score-box{width:48px;height:48px;font-size:26px;}
+    .grid2, .grid3{gap:8px;}
+    .card{padding:10px;}
+    main{padding:8px 6px;}
   }
   .stat-box{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center;}
   .stat-box .val{font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--green);}
@@ -424,7 +464,13 @@
         </div>
       </div>
       <div id="player-selector" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:8px;margin-bottom:16px;max-height:420px;overflow-y:auto;padding-right:4px;"></div>
-      <button class="btn accent" onclick="buildTeams()" style="width:100%;">🎲 Dengeli Takımları Kur</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button class="btn accent" onclick="buildTeamsAI()" style="width:100%;" id="ai-build-btn">🤖 Yapay Zeka ile Kur</button>
+        <button class="btn secondary" onclick="buildTeams()" style="width:100%;">🎲 Klasik Algoritma</button>
+      </div>
+      <div id="ai-loading" style="display:none;text-align:center;padding:14px;color:var(--green);font-size:13px">
+        <span id="ai-loading-text">⏳ Yapay zeka kadroları analiz ediyor...</span>
+      </div>
       <button class="btn secondary" onclick="clearTeams()" id="clear-teams-btn" style="width:100%;margin-top:8px;display:none">✕ Takımları Temizle</button>
     </div>
 
@@ -944,7 +990,7 @@ function redrawTeams(teamA, teamB){
   const epToF=(team)=>{
     const c={GK:0,DEF:0,MID:0,FWD:0};
     team.forEach(p=>c[ep[p.id]||p.pos]++);
-    const FORMATIONS={'1-2-3-1':{GK:1,DEF:2,MID:3,FWD:1},'1-3-2-1':{GK:1,DEF:3,MID:2,FWD:1},'1-3-3':{GK:1,DEF:3,MID:3,FWD:0},'1-2-2-2':{GK:1,DEF:2,MID:2,FWD:2}};
+    const FORMATIONS={'1-2-3-1':{GK:1,DEF:2,MID:3,FWD:1},'1-3-2-1':{GK:1,DEF:3,MID:2,FWD:1}};
     for(const [name,q] of Object.entries(FORMATIONS)) if(q.GK===c.GK&&q.DEF===c.DEF&&q.MID===c.MID&&q.FWD===c.FWD) return name;
     return `1-${c.DEF}-${c.MID}${c.FWD?'-'+c.FWD:''}`;
   };
@@ -973,6 +1019,133 @@ function redrawTeams(teamA, teamB){
 
 
 // ── TAKIM KUR ─────────────────────────────────────────────────────────────────
+// ── YAPAY ZEKA İLE KADRO KURMA ────────────────────────────────────────────────
+async function buildTeamsAI(){
+  const players = state.players.filter(p => selected.has(p.id));
+  if(players.length !== 14){
+    alert('Tam olarak 14 oyuncu seçmelisin! (Şu an: ' + players.length + ')');
+    return;
+  }
+
+  const aiBtn = document.getElementById('ai-build-btn');
+  const loading = document.getElementById('ai-loading');
+  const loadingText = document.getElementById('ai-loading-text');
+  aiBtn.disabled = true;
+  loading.style.display = 'block';
+
+  const msgs = [
+    '⏳ Oyuncu mevkileri analiz ediliyor...',
+    '⚖️ Reyting dengesi hesaplanıyor...',
+    '🧩 Formasyon optimizasyonu yapılıyor...',
+    '✅ Kadro tamamlanıyor...'
+  ];
+  let mi = 0;
+  const ticker = setInterval(() => { loadingText.textContent = msgs[Math.min(++mi, msgs.length-1)]; }, 1400);
+
+  const playerList = players.map(p => ({
+    id: p.id,
+    name: p.name,
+    skill: p.skill,
+    pos: p.pos,
+    pos2: p.pos2
+  }));
+
+  const prompt = `Sen bir futbol takım kurgulama uzmanısın. 14 oyuncuyu 2 dengeli takıma (7vs7) ayır.
+
+KURALLAR:
+1. Her takımda tam 1 kaleci olmalı
+2. Ana mevkisi GK olan oyuncular SADECE kaleci oynar (başka mevkide oynayamazlar)
+3. Sadece şu iki formasyon kullanılabilir: 1-2-3-1 (1GK, 2DEF, 3MID, 1FWD) veya 1-3-2-1 (1GK, 3DEF, 2MID, 1FWD)
+4. Her oyuncunun pos (ana mevki) ve pos2 (ikinci mevki) var. Oyuncu bu iki mevkiden birinde oynayabilir
+5. İki takımın toplam skill puanı mümkün olduğunca eşit olmalı
+6. Mevki uygunluğuna dikkat et: oyuncuyu pos veya pos2'si olan mevkilere yerleştir
+7. Mevki: GK=Kaleci, DEF=Defans, MID=Orta Saha, FWD=Forvet
+
+OYUNCULAR:
+${JSON.stringify(playerList, null, 2)}
+
+Yanıtı SADECE şu JSON formatında ver, başka hiçbir şey yazma:
+{
+  "teamA": ["id1","id2",...],
+  "teamB": ["id1","id2",...],
+  "positions": {"id1":"GK","id2":"DEF",...},
+  "formationA": "1-2-3-1",
+  "formationB": "1-3-2-1",
+  "reasoning": "Kısa açıklama"
+}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    clearInterval(ticker);
+    const data = await res.json();
+    const text = data.content[0].text.trim();
+
+    // JSON parse
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if(!jsonMatch) throw new Error('JSON bulunamadı');
+    const result = JSON.parse(jsonMatch[0]);
+
+    // State'e uygula
+    const teamA = players.filter(p => result.teamA.includes(p.id));
+    const teamB = players.filter(p => result.teamB.includes(p.id));
+    const ep = {};
+    players.forEach(p => {
+      ep[p.id] = result.positions[p.id] || p.pos;
+      // GK mevkili oyuncu asla başka yerde oynamaz
+      if(p.pos === 'GK') ep[p.id] = 'GK';
+    });
+
+    const formation = result.formationA === result.formationB
+      ? result.formationA
+      : result.formationA + ' / ' + result.formationB;
+
+    const epSave = {};
+    players.forEach(p => { epSave[p.id] = ep[p.id] || p.pos; });
+
+    state.pendingTeams = {
+      teamAIds: teamA.map(p => p.id),
+      teamBIds: teamB.map(p => p.id),
+      effectivePos: epSave,
+      formation: formation,
+      savedAt: new Date().toLocaleDateString('tr-TR'),
+      aiReasoning: result.reasoning || ''
+    };
+    save();
+    loading.style.display = 'none';
+    aiBtn.disabled = false;
+
+    if(result.reasoning){
+      const hint = document.createElement('div');
+      hint.style.cssText = 'background:var(--green-dim);border:1px solid var(--green);border-radius:8px;padding:10px 14px;margin-top:8px;font-size:12px;color:var(--muted)';
+      hint.innerHTML = '<strong style="color:var(--green)">🤖 Yapay Zeka Notu:</strong> ' + result.reasoning;
+      hint.id = 'ai-reasoning-box';
+      const existing = document.getElementById('ai-reasoning-box');
+      if(existing) existing.remove();
+      document.getElementById('clear-teams-btn').insertAdjacentElement('afterend', hint);
+    }
+
+    restorePendingTeams();
+
+  } catch(e) {
+    clearInterval(ticker);
+    loading.style.display = 'none';
+    aiBtn.disabled = false;
+    console.error('AI hata:', e);
+    alert('Yapay zeka şu an yanıt vermedi. Klasik algoritma deneniyor...');
+    buildTeams();
+  }
+}
+
+
 function buildTeams(){
   const players=state.players.filter(p=>selected.has(p.id));
   if(players.length!==14){alert('Tam olarak 14 oyuncu seçmelisin! (Şu an: '+players.length+')');return;}
@@ -984,8 +1157,6 @@ function buildTeams(){
   const FORMATIONS={
     '1-2-3-1':{GK:1,DEF:2,MID:3,FWD:1},
     '1-3-2-1':{GK:1,DEF:3,MID:2,FWD:1},
-    '1-3-3':  {GK:1,DEF:3,MID:3,FWD:0},
-    '1-2-2-2':{GK:1,DEF:2,MID:2,FWD:2},
   };
   const FNAMES=Object.keys(FORMATIONS);
 
