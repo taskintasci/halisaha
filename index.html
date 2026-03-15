@@ -464,13 +464,7 @@
         </div>
       </div>
       <div id="player-selector" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:8px;margin-bottom:16px;max-height:420px;overflow-y:auto;padding-right:4px;"></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <button class="btn accent" onclick="buildTeamsAI()" style="width:100%;" id="ai-build-btn">🤖 Yapay Zeka ile Kur</button>
-        <button class="btn secondary" onclick="buildTeams()" style="width:100%;">🎲 Klasik Algoritma</button>
-      </div>
-      <div id="ai-loading" style="display:none;text-align:center;padding:14px;color:var(--green);font-size:13px">
-        <span id="ai-loading-text">⏳ Yapay zeka kadroları analiz ediyor...</span>
-      </div>
+      <button class="btn accent" onclick="buildTeams()" style="width:100%;">🎲 Dengeli Takımları Kur</button>
       <button class="btn secondary" onclick="clearTeams()" id="clear-teams-btn" style="width:100%;margin-top:8px;display:none">✕ Takımları Temizle</button>
     </div>
 
@@ -1019,318 +1013,212 @@ function redrawTeams(teamA, teamB){
 
 
 // ── TAKIM KUR ─────────────────────────────────────────────────────────────────
-// ── YAPAY ZEKA İLE KADRO KURMA ────────────────────────────────────────────────
-async function buildTeamsAI(){
+function buildTeams(){
   const players = state.players.filter(p => selected.has(p.id));
   if(players.length !== 14){
     alert('Tam olarak 14 oyuncu seçmelisin! (Şu an: ' + players.length + ')');
     return;
   }
 
-  const aiBtn = document.getElementById('ai-build-btn');
-  const loading = document.getElementById('ai-loading');
-  const loadingText = document.getElementById('ai-loading-text');
-  aiBtn.disabled = true;
-  loading.style.display = 'block';
-
-  const msgs = [
-    '⏳ Oyuncu mevkileri analiz ediliyor...',
-    '⚖️ Reyting dengesi hesaplanıyor...',
-    '🧩 Formasyon optimizasyonu yapılıyor...',
-    '✅ Kadro tamamlanıyor...'
-  ];
-  let mi = 0;
-  const ticker = setInterval(() => { loadingText.textContent = msgs[Math.min(++mi, msgs.length-1)]; }, 1400);
-
-  const playerList = players.map(p => ({
-    id: p.id,
-    name: p.name,
-    skill: p.skill,
-    pos: p.pos,
-    pos2: p.pos2
-  }));
-
-  const prompt = `Sen bir futbol takım kurgulama uzmanısın. 14 oyuncuyu 2 dengeli takıma (7vs7) ayır.
-
-KURALLAR:
-1. Her takımda tam 1 kaleci olmalı
-2. Ana mevkisi GK olan oyuncular SADECE kaleci oynar (başka mevkide oynayamazlar)
-3. Sadece şu iki formasyon kullanılabilir: 1-2-3-1 (1GK, 2DEF, 3MID, 1FWD) veya 1-3-2-1 (1GK, 3DEF, 2MID, 1FWD)
-4. Her oyuncunun pos (ana mevki) ve pos2 (ikinci mevki) var. Oyuncu bu iki mevkiden birinde oynayabilir
-5. İki takımın toplam skill puanı mümkün olduğunca eşit olmalı
-6. Mevki uygunluğuna dikkat et: oyuncuyu pos veya pos2'si olan mevkilere yerleştir
-7. Mevki: GK=Kaleci, DEF=Defans, MID=Orta Saha, FWD=Forvet
-
-OYUNCULAR:
-${JSON.stringify(playerList, null, 2)}
-
-Yanıtı SADECE şu JSON formatında ver, başka hiçbir şey yazma:
-{
-  "teamA": ["id1","id2",...],
-  "teamB": ["id1","id2",...],
-  "positions": {"id1":"GK","id2":"DEF",...},
-  "formationA": "1-2-3-1",
-  "formationB": "1-3-2-1",
-  "reasoning": "Kısa açıklama"
-}`;
-
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-
-    clearInterval(ticker);
-    const data = await res.json();
-    const text = data.content[0].text.trim();
-
-    // JSON parse
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if(!jsonMatch) throw new Error('JSON bulunamadı');
-    const result = JSON.parse(jsonMatch[0]);
-
-    // State'e uygula
-    const teamA = players.filter(p => result.teamA.includes(p.id));
-    const teamB = players.filter(p => result.teamB.includes(p.id));
-    const ep = {};
-    players.forEach(p => {
-      ep[p.id] = result.positions[p.id] || p.pos;
-      // GK mevkili oyuncu asla başka yerde oynamaz
-      if(p.pos === 'GK') ep[p.id] = 'GK';
-    });
-
-    const formation = result.formationA === result.formationB
-      ? result.formationA
-      : result.formationA + ' / ' + result.formationB;
-
-    const epSave = {};
-    players.forEach(p => { epSave[p.id] = ep[p.id] || p.pos; });
-
-    state.pendingTeams = {
-      teamAIds: teamA.map(p => p.id),
-      teamBIds: teamB.map(p => p.id),
-      effectivePos: epSave,
-      formation: formation,
-      savedAt: new Date().toLocaleDateString('tr-TR'),
-      aiReasoning: result.reasoning || ''
-    };
-    save();
-    loading.style.display = 'none';
-    aiBtn.disabled = false;
-
-    if(result.reasoning){
-      const hint = document.createElement('div');
-      hint.style.cssText = 'background:var(--green-dim);border:1px solid var(--green);border-radius:8px;padding:10px 14px;margin-top:8px;font-size:12px;color:var(--muted)';
-      hint.innerHTML = '<strong style="color:var(--green)">🤖 Yapay Zeka Notu:</strong> ' + result.reasoning;
-      hint.id = 'ai-reasoning-box';
-      const existing = document.getElementById('ai-reasoning-box');
-      if(existing) existing.remove();
-      document.getElementById('clear-teams-btn').insertAdjacentElement('afterend', hint);
-    }
-
-    restorePendingTeams();
-
-  } catch(e) {
-    clearInterval(ticker);
-    loading.style.display = 'none';
-    aiBtn.disabled = false;
-    console.error('AI hata:', e);
-    alert('Yapay zeka şu an yanıt vermedi. Klasik algoritma deneniyor...');
-    buildTeams();
-  }
-}
-
-
-function buildTeams(){
-  const players=state.players.filter(p=>selected.has(p.id));
-  if(players.length!==14){alert('Tam olarak 14 oyuncu seçmelisin! (Şu an: '+players.length+')');return;}
-
-  const POS=['GK','DEF','MID','FWD'];
-  const avg=arr=>arr.reduce((s,p)=>s+p.skill,0)/arr.length;
-  const canPlay=(p,pos)=>p.pos===pos||p.pos2===pos;
-
-  const FORMATIONS={
-    '1-2-3-1':{GK:1,DEF:2,MID:3,FWD:1},
-    '1-3-2-1':{GK:1,DEF:3,MID:2,FWD:1},
+  const POS = ['GK','DEF','MID','FWD'];
+  const avg = arr => arr.reduce((s,p) => s+p.skill, 0) / arr.length;
+  const FORMATIONS = {
+    '1-2-3-1': {GK:1, DEF:2, MID:3, FWD:1},
+    '1-3-2-1': {GK:1, DEF:3, MID:2, FWD:1}
   };
-  const FNAMES=Object.keys(FORMATIONS);
 
-  // ── Bir takıma formasyon uygulamaya çalış, etkin mevkileri döndür ──────────
-  function tryFormation(team, quota, gkId){
-    const ep={};
-    team.forEach(p=>ep[p.id]=(gkId&&p.id===gkId)?'GK':p.pos);
-    const getCnt=()=>{ const c={GK:0,DEF:0,MID:0,FWD:0}; team.forEach(p=>c[ep[p.id]]++); return c; };
-    for(let iter=0;iter<30;iter++){
-      const c=getCnt();
-      const over=POS.filter(pos=>c[pos]>quota[pos]);
-      const under=POS.filter(pos=>c[pos]<quota[pos]);
-      if(!over.length||!under.length) break;
-      let moved=false;
-      // Doğrudan hareket
-      for(const u of under){ if(moved)break;
-        for(const o of over){ if(moved)break;
-          if(getCnt()[o]<=quota[o]||getCnt()[u]>=quota[u]) continue;
-          const cands=team.filter(p=>ep[p.id]===o&&canPlay(p,u)).sort((a,b)=>a.skill-b.skill);
-          if(cands.length){ ep[cands[0].id]=u; moved=true; }
+  // ── Backtracking ile kesin formasyon ataması ──────────────────────────────
+  // Kaleci hariç 6 oyuncuyu formasyondaki DEF/MID/FWD slotlarına ata.
+  // Her oyuncu sadece pos veya pos2'si olan slota atanabilir.
+  // Çözüm bulunamazsa null döner.
+  function fitFormation(nonGkPlayers, quota) {
+    // Slotları oluştur
+    const slots = [];
+    ['DEF','MID','FWD'].forEach(pos => {
+      for(let i = 0; i < quota[pos]; i++) slots.push(pos);
+    });
+    // Kısıtı az olan oyuncuları öne al (fail-fast pruning)
+    const sorted = [...nonGkPlayers].sort((a,b) => {
+      const va = slots.filter(s => a.pos===s || a.pos2===s).length;
+      const vb = slots.filter(s => b.pos===s || b.pos2===s).length;
+      return va - vb;
+    });
+    const assignment = {};
+    const used = new Array(slots.length).fill(false);
+    function bt(pi) {
+      if(pi === sorted.length) return true;
+      const p = sorted[pi];
+      for(let si = 0; si < slots.length; si++){
+        if(used[si]) continue;
+        if(p.pos === slots[si] || p.pos2 === slots[si]){
+          assignment[p.id] = slots[si];
+          used[si] = true;
+          if(bt(pi+1)) return true;
+          used[si] = false;
+          delete assignment[p.id];
         }
       }
-      // Zincir hareket
-      if(!moved){
-        outer:
-        for(const u of under) for(const o of over){
-          if(getCnt()[o]<=quota[o]||getCnt()[u]>=quota[u]) continue;
-          for(const m of POS){ if(m===u||m===o) continue;
-            const pA=team.find(p=>ep[p.id]===m&&canPlay(p,u));
-            if(!pA) continue;
-            const pB=team.find(p=>ep[p.id]===o&&canPlay(p,m)&&p.id!==pA.id);
-            if(!pB) continue;
-            ep[pA.id]=u; ep[pB.id]=m; moved=true; break outer;
-          }
-        }
-      }
-      if(!moved) break;
+      return false;
     }
-    // Formasyon ne kadar tuttu? (uyumsuz sayısı)
-    const c=getCnt();
-    const mismatch=POS.reduce((s,pos)=>s+Math.abs(c[pos]-quota[pos]),0);
-    return {ep, mismatch};
+    return bt(0) ? assignment : null;
   }
 
-  // ── ADIM 1: Kaleci adaylarını belirle ─────────────────────────────────────
-  // Önce ana mevkisi GK olanlar, sonra 2. mevkisi GK olanlar
-  const primaryGK=players.filter(p=>p.pos==='GK');
-  const secondaryGK=players.filter(p=>p.pos!=='GK'&&p.pos2==='GK');
-  const gkCandidates=[...primaryGK, ...secondaryGK];
-  if(gkCandidates.length<2){ alert('En az 2 kaleci (veya kaleci oynayabilecek) oyuncu seçmelisin!'); return; }
-
-  // ── ADIM 2: Önce en dengeli 7+7 bölünmeyi bul (sadece 1 GK/takım kısıtı) ─
-  // Tüm kaleci çiftlerini dene, her çift için kalan 12'yi dengeli böl
-  let bestSplit=null, bestSkillDiff=Infinity;
-
-  // Öncelik: iki ana kaleci varsa sadece onları kullan
-  // Yoksa ana+ikincil veya ikincil+ikincil kombinasyonlarını dene
-  let gkPool;
-  if(primaryGK.length>=2){
-    gkPool=primaryGK.slice(0,4); // Ana kaleciler yeterli
-  } else if(primaryGK.length===1){
-    gkPool=[...primaryGK, ...secondaryGK].slice(0,4); // 1 ana + ikinciller
-  } else {
-    gkPool=secondaryGK.slice(0,4); // Sadece ikincil kaleciler
+  // ── ADIM 1: Kaleci seçimi ─────────────────────────────────────────────────
+  const primaryGK   = players.filter(p => p.pos === 'GK');
+  const secondaryGK = players.filter(p => p.pos !== 'GK' && p.pos2 === 'GK');
+  if(primaryGK.length + secondaryGK.length < 2){
+    alert('En az 2 kaleci (veya kaleci oynayabilecek) oyuncu seçmelisin!');
+    return;
   }
-  for(let gi=0;gi<gkPool.length;gi++){
-    for(let gj=0;gj<gkPool.length;gj++){
-      if(gi===gj) continue;
-      const gkA=gkPool[gi], gkB=gkPool[gj];
-      const rest=players.filter(p=>p.id!==gkA.id&&p.id!==gkB.id); // 12 kişi
-      rest.sort((a,b)=>b.skill-a.skill);
+  // Ana kalecileri önceliklendir
+  const gkPool = primaryGK.length >= 2
+    ? primaryGK.slice(0, 4)
+    : [...primaryGK, ...secondaryGK].slice(0, 4);
 
-      // Brute force yerine: önce skill sıralamasına göre snake draft
-      // sonra swap ile optimize et
-      const setA=new Set([gkA.id]), setB=new Set([gkB.id]);
-      // Snake draft: 1→A, 2→B, 3→B, 4→A, 5→A, 6→B ...
-      rest.forEach((p,i)=>{
-        const slot=i%4;
-        (slot===0||slot===3)?setA.add(p.id):setB.add(p.id);
-      });
+  // ── ADIM 2: Tüm GK çiftlerini ve formasyon kombinasyonlarını dene ─────────
+  // Kriter: mismatch=0 (kesin formasyon) + skill farkı minimum
+  let best = null;
+  let bestScore = Infinity; // mismatch*1000 + skillDiff
 
-      // Swap optimize et
-      const sd=()=>{ let sA=0,sB=0; players.forEach(p=>setA.has(p.id)?sA+=p.skill:sB+=p.skill); return {sA,sB}; };
-      let improved=true;
-      for(let r=0;r<200&&improved;r++){
-        improved=false;
-        const {sA,sB}=sd();
-        for(const idA of [...setA]){
-          if(idA===gkA.id||idA===gkB.id) continue;
-          for(const idB of [...setB]){
-            if(idB===gkA.id||idB===gkB.id) continue;
-            const pA=players.find(p=>p.id===idA), pB=players.find(p=>p.id===idB);
-            const nd=Math.abs((sA-pA.skill+pB.skill)-(sB+pA.skill-pB.skill));
-            if(nd<Math.abs(sA-sB)-0.001){
-              setA.delete(idA); setA.add(idB);
-              setB.delete(idB); setB.add(idA);
-              improved=true; break;
+  const FNAMES = Object.keys(FORMATIONS);
+  const skillSum = arr => arr.reduce((s,p) => s+p.skill, 0);
+
+  for(let gi = 0; gi < gkPool.length; gi++){
+    for(let gj = gi+1; gj < gkPool.length; gj++){
+      const gkA = gkPool[gi], gkB = gkPool[gj];
+      const rest = players.filter(p => p.id !== gkA.id && p.id !== gkB.id);
+      rest.sort((a,b) => b.skill - a.skill);
+
+      // Her formasyon çifti için dene
+      for(const fA of FNAMES){
+        for(const fB of FNAMES){
+          const qA = FORMATIONS[fA], qB = FORMATIONS[fB];
+
+          // Snake draft başlangıcı
+          const setA = new Set([gkA.id]), setB = new Set([gkB.id]);
+          rest.forEach((p,i) => {
+            const slot = i % 4;
+            (slot===0||slot===3) ? setA.add(p.id) : setB.add(p.id);
+          });
+
+          // Formasyon kısıtını bozmadan skill dengesi için swap
+          let improved = true;
+          for(let r = 0; r < 400 && improved; r++){
+            improved = false;
+            const tA = players.filter(p => setA.has(p.id));
+            const tB = players.filter(p => setB.has(p.id));
+            const sA = skillSum(tA), sB = skillSum(tB);
+
+            for(const idA of [...setA]){
+              if(idA === gkA.id || idA === gkB.id) continue;
+              for(const idB of [...setB]){
+                if(idB === gkA.id || idB === gkB.id) continue;
+                const pA = players.find(p => p.id===idA);
+                const pB = players.find(p => p.id===idB);
+                const newDiff = Math.abs((sA-pA.skill+pB.skill)-(sB+pA.skill-pB.skill));
+                if(newDiff < Math.abs(sA-sB) - 0.001){
+                  // Swap yap
+                  setA.delete(idA); setA.add(idB);
+                  setB.delete(idB); setB.add(idA);
+                  // Formasyon hâlâ sağlanıyor mu?
+                  const ngA = players.filter(p => setA.has(p.id) && p.id!==gkA.id);
+                  const ngB = players.filter(p => setB.has(p.id) && p.id!==gkB.id);
+                  const aA = fitFormation(ngA, qA);
+                  const aB = fitFormation(ngB, qB);
+                  if(aA && aB){
+                    improved = true;
+                    const score = newDiff;
+                    if(score < bestScore){
+                      bestScore = score;
+                      best = { setA:new Set(setA), setB:new Set(setB), gkA, gkB, fA, fB, asgA:aA, asgB:aB };
+                    }
+                  } else {
+                    // Swap geri al
+                    setA.delete(idB); setA.add(idA);
+                    setB.delete(idA); setB.add(idB);
+                  }
+                  if(improved) break;
+                }
+              }
+              if(improved) break;
             }
           }
-          if(improved) break;
+
+          // Swap iyileştirmesi olmasa da bu bölünmeyi değerlendir
+          const ngA = players.filter(p => setA.has(p.id) && p.id!==gkA.id);
+          const ngB = players.filter(p => setB.has(p.id) && p.id!==gkB.id);
+          const aA = fitFormation(ngA, qA);
+          const aB = fitFormation(ngB, qB);
+          if(aA && aB){
+            const tA = players.filter(p => setA.has(p.id));
+            const tB = players.filter(p => setB.has(p.id));
+            const diff = Math.abs(skillSum(tA) - skillSum(tB));
+            if(diff < bestScore){
+              bestScore = diff;
+              best = { setA:new Set(setA), setB:new Set(setB), gkA, gkB, fA, fB, asgA:aA, asgB:aB };
+            }
+          }
         }
       }
-
-      const {sA,sB}=sd();
-      const diff=Math.abs(sA-sB);
-      if(diff<bestSkillDiff){
-        bestSkillDiff=diff;
-        bestSplit={setA:new Set(setA), setB:new Set(setB), gkA, gkB};
-      }
     }
   }
 
-  // ── ADIM 3: Her takıma en uygun formasyonu seç ────────────────────────────
-  const teamA=players.filter(p=>bestSplit.setA.has(p.id));
-  const teamB=players.filter(p=>bestSplit.setB.has(p.id));
+  if(!best){
+    alert('Seçili oyuncularla geçerli bir formasyon kurulamadı! Lütfen farklı oyuncular deneyin.');
+    return;
+  }
 
-  // Gerçek ep dağılımından formasyon adını üret
-  const epToFormation=(team,epMap)=>{
-    const c={GK:0,DEF:0,MID:0,FWD:0};
-    team.forEach(p=>c[epMap[p.id]]++);
+  // ── ADIM 3: Etkin mevkileri oluştur ──────────────────────────────────────
+  const teamA = players.filter(p => best.setA.has(p.id));
+  const teamB = players.filter(p => best.setB.has(p.id));
+  const ep = {};
+
+  // Tüm oyunculara ana mevki ata
+  players.forEach(p => { ep[p.id] = p.pos; });
+  // Backtracking atamalarını uygula
+  Object.assign(ep, best.asgA, best.asgB);
+  // Kaleciler her zaman GK (sigorta)
+  ep[best.gkA.id] = 'GK';
+  ep[best.gkB.id] = 'GK';
+  // pos=GK olan oyuncular başka mevkiye atanamaz
+  players.forEach(p => { if(p.pos === 'GK') ep[p.id] = 'GK'; });
+
+  // Formasyon adı
+  const epToFormation = (team) => {
+    const c = {GK:0, DEF:0, MID:0, FWD:0};
+    team.forEach(p => c[ep[p.id]]++);
     for(const [name,q] of Object.entries(FORMATIONS)){
-      if(q.GK===c.GK&&q.DEF===c.DEF&&q.MID===c.MID&&q.FWD===c.FWD) return name;
+      if(q.GK===c.GK && q.DEF===c.DEF && q.MID===c.MID && q.FWD===c.FWD) return name;
     }
-    return `1-${c.DEF}-${c.MID}${c.FWD?'-'+c.FWD:''}`;
+    return '1-'+c.DEF+'-'+c.MID+(c.FWD?'-'+c.FWD:'');
   };
+  const realFormA = epToFormation(teamA);
+  const realFormB = epToFormation(teamB);
+  const formation = realFormA===realFormB ? realFormA : realFormA+' / '+realFormB;
 
-  let bestEpA={}, bestEpB={};
-  let bestMismatch=Infinity;
-
-  for(const fA of FNAMES){
-    const gkIdA=bestSplit.gkA.id, gkIdB=bestSplit.gkB.id;
-    const {ep:epA, mismatch:mA}=tryFormation(teamA, FORMATIONS[fA], gkIdA);
-    for(const fB of FNAMES){
-      const {ep:epB, mismatch:mB}=tryFormation(teamB, FORMATIONS[fB], gkIdB);
-      const total=mA+mB;
-      if(total<bestMismatch){
-        bestMismatch=total;
-        bestEpA={...epA}; bestEpB={...epB};
-      }
-    }
-  }
-
-  const ep={...bestEpA,...bestEpB};
-  // Seçilen kalecileri zorla GK olarak işaretle (pos2=GK durumunda ep yanlış kalabilir)
-  ep[bestSplit.gkA.id]='GK';
-  ep[bestSplit.gkB.id]='GK';
-  const realFormA=epToFormation(teamA,ep);
-  const realFormB=epToFormation(teamB,ep);
-  const formation=realFormA===realFormB ? realFormA : `${realFormA} / ${realFormB}`;
-
-  state.lastFormation=formation;
-  const epSave={};
-  players.forEach(p=>{ epSave[p.id]=ep[p.id]||p.pos; });
-  state.pendingTeams={
+  // State'e kaydet
+  const epSave = {};
+  players.forEach(p => { epSave[p.id] = ep[p.id] || p.pos; });
+  state.pendingTeams = {
     teamAIds: teamA.map(p=>p.id),
     teamBIds: teamB.map(p=>p.id),
     effectivePos: epSave,
-    formation: formation,
+    formation,
     savedAt: new Date().toLocaleDateString('tr-TR')
   };
-  state.currentTeams={teamA,teamB};
+  state.currentTeams = {teamA, teamB};
   save();
 
-  // Mevki sırasına göre sırala (etkin mevkiye göre)
-  const posIdx=pos=>POS.indexOf(pos);
-  const sortedA=[...teamA].sort((a,b)=>posIdx(ep[a.id])-posIdx(ep[b.id]));
-  const sortedB=[...teamB].sort((a,b)=>posIdx(ep[a.id])-posIdx(ep[b.id]));
+  // ── Render ───────────────────────────────────────────────────────────────
+  const posIdx = pos => POS.indexOf(pos);
+  const sortedA = [...teamA].sort((a,b) => posIdx(ep[a.id])-posIdx(ep[b.id]));
+  const sortedB = [...teamB].sort((a,b) => posIdx(ep[a.id])-posIdx(ep[b.id]));
 
-  // 2. mevkiyle oynuyorsa badge'de etkin mevki göster, yanında soluk ana mevki
-  const rp=(p,team)=>{
-    const epos=ep[p.id]||p.pos;
-    const usingAlt=epos!==p.pos;
-    const badge=`<span class="badge ${POS_CLASS[epos]}" style="margin-left:8px">${POS_LABELS[epos]}</span>`;
-    const altNote=usingAlt?`<span class="badge ${POS_CLASS[p.pos]}" style="margin-left:4px;opacity:0.4;font-size:10px">${POS_LABELS[p.pos]}</span>`:'';
+  const rp = (p, team) => {
+    const epos = ep[p.id] || p.pos;
+    const usingAlt = epos !== p.pos;
+    const badge = `<span class="badge ${POS_CLASS[epos]}" style="margin-left:8px">${POS_LABELS[epos]}</span>`;
+    const altNote = usingAlt ? `<span class="badge ${POS_CLASS[p.pos]}" style="margin-left:4px;opacity:0.4;font-size:10px">${POS_LABELS[p.pos]}</span>` : '';
     return `<div class="player-row" draggable="true" data-id="${p.id}" data-team="${team}"
       ondragstart="dragStart(event)" ondragover="dragOver(event)" ondrop="dropPlayer(event)" ondragend="dragEnd(event)"
       ondragleave="dragLeave(event)">
@@ -1339,18 +1227,18 @@ function buildTeams(){
     </div>`;
   };
 
-  document.getElementById('teamA-players').innerHTML=sortedA.map(p=>rp(p,'A')).join('');
-  document.getElementById('teamB-players').innerHTML=sortedB.map(p=>rp(p,'B')).join('');
-  document.getElementById('teamA-avg').textContent=`Ort: ${avg(teamA).toFixed(2)}  •  ${realFormA}`;
-  document.getElementById('teamB-avg').textContent=`Ort: ${avg(teamB).toFixed(2)}  •  ${realFormB}`;
-  document.getElementById('teams-result').style.display='block';
-  document.getElementById('clear-teams-btn').style.display='block';
-  document.getElementById('score-a').value=0;
-  document.getElementById('score-b').value=0;
-  document.getElementById('result-alert').className='alert';
+  document.getElementById('teamA-players').innerHTML = sortedA.map(p=>rp(p,'A')).join('');
+  document.getElementById('teamB-players').innerHTML = sortedB.map(p=>rp(p,'B')).join('');
+  document.getElementById('teamA-avg').textContent = `Ort: ${avg(teamA).toFixed(2)}  •  ${realFormA}`;
+  document.getElementById('teamB-avg').textContent = `Ort: ${avg(teamB).toFixed(2)}  •  ${realFormB}`;
+  document.getElementById('teams-result').style.display = 'block';
+  document.getElementById('clear-teams-btn').style.display = 'block';
+  document.getElementById('score-a').value = 0;
+  document.getElementById('score-b').value = 0;
+  document.getElementById('result-alert').className = 'alert';
 }
 
-// Bekleyen kadroları sayfa yüklenince geri yükle
+
 function restorePendingTeams(){
   if(!state || !state.pendingTeams) return;
   const pt = state.pendingTeams;
