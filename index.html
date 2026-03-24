@@ -183,6 +183,7 @@
   .attendee-chip{background:var(--green-dim);border:1px solid var(--green);border-radius:20px;padding:3px 10px;font-size:12px;color:var(--green);font-weight:600;}
   .attendee-chip.me{background:#00C85333;border-color:var(--green);font-weight:700;}
   .attendee-chip.no{background:#ff444411;border-color:var(--red);color:var(--red);}
+  .attendee-chip.reserve{background:#f5a62311;border:1px solid #f5a623;color:#f5a623;}
   .rsvp-btn{padding:10px 24px;font-size:14px;border-radius:8px;border:2px solid var(--green);background:var(--green-dim);color:var(--green);font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:1px;cursor:pointer;text-transform:uppercase;transition:all 0.2s;}
   .rsvp-btn:hover,.rsvp-btn.active{background:var(--green);color:#000;}
   .rsvp-btn.cancel{border-color:var(--red);background:#ff444411;color:var(--red);}
@@ -1738,7 +1739,7 @@ function renderEventAdmin(){
       html += '<div>';
       html += '<div style="font-family:Bebas Neue,sans-serif;font-size:20px;color:var(--accent);line-height:1.2">' + (ev.timeStart||'') + ' – ' + (ev.timeEnd||'') + '</div>';
       html += '<div style="font-size:12px;color:var(--muted);margin-top:2px">' + (ev.dateStr||'') + '</div>';
-      html += '<div style="font-size:12px;color:var(--muted)">' + (ev.location||'') + ' · <strong style="color:var(--green)">' + cnt + ' katılımcı</strong>' + (cnt>0 ? ' · ' + ev.attendees.join(', ') : '') + '</div>';
+      html += '<div style="font-size:12px;color:var(--muted)">' + (ev.location||'') + ' · <strong style="color:var(--green)">' + Math.min(cnt, ev.maxPlayers||14) + ' / ' + (ev.maxPlayers||14) + ' katılımcı</strong>' + (cnt>(ev.maxPlayers||14) ? ' · <span style="color:#f5a623">' + (cnt-(ev.maxPlayers||14)) + ' yedek</span>' : '') + (cnt>0 ? '<br><span style="font-size:11px">' + ev.attendees.slice(0,ev.maxPlayers||14).join(', ') + (cnt>(ev.maxPlayers||14) ? ' | Yedek: '+ev.attendees.slice(ev.maxPlayers||14).join(', ') : '') + '</span>' : '') + '</div>';
       html += '</div>';
       html += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
       if(cnt>0) html += '<button class="btn secondary" style="font-size:11px;padding:5px 10px" data-import="' + i + '">Aktar</button>';
@@ -1839,9 +1840,35 @@ function rsvpEvent(idx, joining){
   if(!events[idx]) return;
   if(!events[idx].attendees) events[idx].attendees=[];
   if(joining){
-    if(!events[idx].attendees.includes(currentPlayerName)) events[idx].attendees.push(currentPlayerName);
+    if(!events[idx].attendees.includes(currentPlayerName)){
+      events[idx].attendees.push(currentPlayerName);
+      const max = events[idx].maxPlayers||14;
+      const pos = events[idx].attendees.length;
+      if(pos > max){
+        // Yedek listesine girdi - bilgilendirme
+        const reserveNo = pos - max;
+        setTimeout(()=>{
+          // Sessiz - kart güncellendi, kullanıcı görebilir
+        }, 0);
+      }
+    }
   } else {
-    events[idx].attendees=events[idx].attendees.filter(n=>n!==currentPlayerName);
+    const max = events[idx].maxPlayers||14;
+    const wasMain = events[idx].attendees.indexOf(currentPlayerName) < max;
+    // Oyuncuyu çıkar (sıra korunur, yedek varsa otomatik kayar)
+    events[idx].attendees = events[idx].attendees.filter(n=>n!==currentPlayerName);
+    // Yedek varsa ilki ana kadroya otomatik geçti (slice mantığı ile zaten olur)
+    if(wasMain && events[idx].attendees.length >= max){
+      // İlk yedek artık ana kadroda - bildirim göster
+      const promoted = events[idx].attendees[max-1];
+      setTimeout(()=>{
+        const banner = document.createElement('div');
+        banner.style.cssText='position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#1a3a22;border:1px solid var(--green);border-radius:8px;padding:10px 20px;font-size:13px;color:var(--green);z-index:999;box-shadow:0 4px 16px #000a';
+        banner.innerHTML='⚽ <strong>'+promoted+'</strong> ana kadroya alındı!';
+        document.body.appendChild(banner);
+        setTimeout(()=>banner.remove(), 3000);
+      }, 100);
+    }
   }
   state.events=events;
   save(); renderEventCard();
@@ -1851,8 +1878,10 @@ function importFromEvent(idx){
   const events=getEvents();
   const ev=events[idx];
   if(!ev||!(ev.attendees||[]).length){alert('Bu etkinlikte katılımcı yok!');return;}
+  const max = ev.maxPlayers||14;
+  const mainSquad = (ev.attendees||[]).slice(0, max); // Sadece ana kadro
   const matched=[],unmatched=[];
-  ev.attendees.forEach(name=>{
+  mainSquad.forEach(name=>{
     const p=state.players.find(p=>p.name===name);
     if(p) matched.push(p.id); else unmatched.push(name);
   });
