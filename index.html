@@ -1648,47 +1648,70 @@ function renderProfile(){
 function getEvents(){ return state.events || (state.event&&state.event.active ? [state.event] : []); }
 
 function buildEventCardHTML(ev, idx, myName){
-  const isIn = (ev.attendees||[]).includes(myName);
-  const count = (ev.attendees||[]).length;
-  const max = ev.maxPlayers||14;
-  const pct = Math.min(Math.round(count/max*100),100);
-  const full = count>=max;
-  const chips = (ev.attendees||[]).map(n=>{
-    const me=n===myName;
-    return `<span class="attendee-chip${me?' me':''}">${me?'✓ ':''}${n}</span>`;
-  }).join('');
+  var all   = ev.attendees||[];
+  var max   = ev.maxPlayers||14;
+  var main  = all.slice(0, max);
+  var rsv   = all.slice(max);
+  var full  = main.length >= max;
+  var isIn  = all.indexOf(myName) >= 0;
+  var isRsv = rsv.indexOf(myName) >= 0;
+  var rsvNo = rsv.indexOf(myName)+1;
+  var pct   = Math.min(Math.round(main.length/max*100),100);
 
-  let rsvp='';
+  var mainChips = main.map(function(n){
+    var me = n===myName;
+    return "<span class=\"attendee-chip"+(me?" me":"")+"\">"+( me?"&#10003; " : " ")+n+"</span>";
+  }).join("");
+
+  var rsvChips = rsv.map(function(n,i){
+    var me = n===myName;
+    return "<span class=\"attendee-chip reserve"+(me?" me":"")+"\">&#9203; "+(i+1)+". "+n+"</span>";
+  }).join("");
+
+  var rsvp = "";
   if(isAdmin){
-    rsvp='<button class="rsvp-btn" onclick="importFromEvent('+idx+')" style="background:var(--green);color:#000;border-color:var(--green)">&#9917; Maç Kur’a Aktar →</button>';
+    rsvp = "<button class=\"rsvp-btn\" onclick=\"importFromEvent("+idx+")\" style=\"background:var(--green);color:#000;border-color:var(--green)\">&#9917; Ma&#231; Kur&#39;a Aktar &#8594;</button>";
   } else if(myName){
-    rsvp = isIn
-      ? `<button class="rsvp-btn cancel" onclick="rsvpEvent(${idx},false)">✕ Katılmıyorum</button>`
-      : full
-        ? `<div style="font-size:12px;color:var(--accent);padding:6px 0">⚠️ Kadro dolu (${count}/${max})</div>`
-        : `<button class="rsvp-btn" onclick="rsvpEvent(${idx},true)">✅ Katılıyorum</button>`;
+    if(isIn){
+      var note = isRsv ? "<div style=\"font-size:11px;color:#f5a623;margin-bottom:6px\">&#9203; Yedek listesinde "+rsvNo+". s&#305;radays&#305;n&#305;z</div>" : "";
+      rsvp = note+"<button class=\"rsvp-btn cancel\" onclick=\"rsvpEvent("+idx+",false)\">&#10005; Kat&#305;lm&#305;yorum</button>";
+    } else if(full){
+      rsvp = "<div style=\"font-size:12px;color:#f5a623;padding:4px 0;margin-bottom:6px\">Kadro dolu &mdash; yedek listesine "+(rsv.length+1)+". s&#305;raya girersiniz</div>"
+           + "<button class=\"rsvp-btn\" style=\"border-color:#f5a623;color:#f5a623\" onclick=\"rsvpEvent("+idx+",true)\">&#9203; Yedek Listeye Gir</button>";
+    } else {
+      rsvp = "<button class=\"rsvp-btn\" onclick=\"rsvpEvent("+idx+",true)\">&#9989; Kat&#305;l&#305;yorum</button>";
+    }
   } else {
-    rsvp=`<div style="font-size:12px;color:var(--muted);padding:6px 0">Katılmak için oyuncu olarak giriş yap.</div>`;
+    rsvp = "<div style=\"font-size:12px;color:var(--muted);padding:6px 0\">Kat&#305;lmak i&#231;in oyuncu olarak giri&#351; yap.</div>";
   }
 
-  return `<div class="event-card" style="margin-bottom:12px">
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
-      <div>
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;color:var(--green);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">📅 Etkinlik ${getEvents().length>1?idx+1:''}</div>
-        <div class="event-time">${ev.timeStart||''} <span style="font-size:18px;color:var(--muted)">–</span> ${ev.timeEnd||''}</div>
-        <div class="event-date-str">${ev.dateStr||''} &nbsp;·&nbsp; 📍 ${ev.location||'Halısaha'}</div>
-      </div>
-      <div style="text-align:right">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:${full?'var(--accent)':'var(--green)'};line-height:1">${count}<span style="font-size:18px;color:var(--muted)"> / ${max}</span></div>
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Katılımcı</div>
-      </div>
-    </div>
-    <div style="height:5px;background:var(--bg);border-radius:3px;margin:10px 0 8px;overflow:hidden">
-      <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--green-dark),var(--green));border-radius:3px;transition:width 0.4s"></div>
-    </div>
-    ${count>0?`<div class="event-attendees">${chips}</div>`:'<div style="color:var(--muted);font-size:13px;margin:8px 0">Henüz katılan yok.</div>'}
-    <div style="margin-top:10px">${rsvp}</div>
-  </div>`;
+  var rsvSection = rsv.length
+    ? "<div style=\"margin-top:10px;padding-top:10px;border-top:1px solid var(--border)\">"
+      + "<div style=\"font-size:11px;color:#f5a623;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px\">&#9203; Yedek Listesi</div>"
+      + "<div class=\"event-attendees\" style=\"margin:0\">"+rsvChips+"</div>"
+      + "</div>"
+    : "";
+
+  var evLabel = getEvents().length > 1 ? "&#128197; Etkinlik "+(idx+1) : "&#128197; Etkinlik";
+
+  return "<div class=\"event-card\" style=\"margin-bottom:12px\">"
+    + "<div style=\"display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap\">"
+    + "<div>"
+    + "<div style=\"font-family:Barlow Condensed,sans-serif;font-size:12px;font-weight:700;color:var(--green);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px\">"+evLabel+"</div>"
+    + "<div class=\"event-time\">"+(ev.timeStart||"")+" <span style=\"font-size:18px;color:var(--muted)\">&ndash;</span> "+(ev.timeEnd||"")+"</div>"
+    + "<div class=\"event-date-str\">"+(ev.dateStr||"")+" &nbsp;&middot;&nbsp; &#128205; "+(ev.location||"Hal&#305;saha")+"</div>"
+    + "</div>"
+    + "<div style=\"text-align:right\">"
+    + "<div style=\"font-family:Bebas Neue,sans-serif;font-size:36px;color:"+(full?"var(--accent)":"var(--green)")+";line-height:1\">"+main.length+"<span style=\"font-size:18px;color:var(--muted)\"> / "+max+"</span></div>"
+    + "<div style=\"font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px\">Ana Kadro</div>"
+    + "</div></div>"
+    + "<div style=\"height:5px;background:var(--bg);border-radius:3px;margin:10px 0 8px;overflow:hidden\">"
+    + "<div style=\"height:100%;width:"+pct+"%;background:linear-gradient(90deg,var(--green-dark),var(--green));border-radius:3px;transition:width 0.4s\"></div>"
+    + "</div>"
+    + (main.length>0 ? "<div class=\"event-attendees\">"+mainChips+"</div>" : "<div style=\"color:var(--muted);font-size:13px;margin:8px 0\">Hen\xfcz kat&#305;lan yok.</div>")
+    + rsvSection
+    + "<div style=\"margin-top:10px\">"+rsvp+"</div>"
+    + "</div>";
 }
 
 function renderEventCard(){
