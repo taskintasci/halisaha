@@ -188,7 +188,8 @@
   .ev-dnd-chip{display:inline-flex;align-items:center;gap:5px;background:var(--green-dim);border:1px solid var(--green);border-radius:20px;padding:4px 10px;font-size:12px;color:var(--green);font-weight:600;cursor:grab;user-select:none;margin:3px;transition:opacity 0.15s,box-shadow 0.15s;}
   .ev-dnd-chip.reserve-chip{background:#f5a62311;border-color:#f5a623;color:#f5a623;}
   .ev-dnd-chip.dragging{opacity:0.35;cursor:grabbing;}
-  .ev-dnd-chip.drag-over-chip{box-shadow:0 0 0 2px var(--green);}
+  .ev-dnd-chip.drag-over-chip{box-shadow:0 0 0 2px var(--green);background:#00C85344;color:#fff;border-color:var(--green);transform:scale(1.08);}
+  .ev-dnd-chip.reserve-chip.drag-over-chip{background:#f5a62344;box-shadow:0 0 0 2px #f5a623;border-color:#f5a623;}
   .attendee-chip.no{background:#ff444411;border-color:var(--red);color:var(--red);}
   .attendee-chip.reserve{background:#f5a62311;border:1px solid #f5a623;color:#f5a623;}
   .rsvp-btn{padding:10px 24px;font-size:14px;border-radius:8px;border:2px solid var(--green);background:var(--green-dim);color:var(--green);font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:1px;cursor:pointer;text-transform:uppercase;transition:all 0.2s;}
@@ -1800,7 +1801,17 @@ function initEventDnd(){
     chip.addEventListener('dragend', function(){
       this.classList.remove('dragging');
       document.querySelectorAll('.ev-dnd-zone').forEach(function(z){ z.classList.remove('drag-active'); });
+      document.querySelectorAll('.ev-dnd-chip').forEach(function(c){ c.classList.remove('drag-over-chip'); });
       dragSrc = null;
+    });
+    chip.addEventListener('dragenter', function(e){
+      e.preventDefault();
+      if(dragSrc && this.getAttribute('data-name') !== dragSrc.name){
+        this.classList.add('drag-over-chip');
+      }
+    });
+    chip.addEventListener('dragleave', function(){
+      this.classList.remove('drag-over-chip');
     });
   });
 
@@ -1816,6 +1827,7 @@ function initEventDnd(){
     zone.addEventListener('drop', function(e){
       e.preventDefault();
       this.classList.remove('drag-active');
+      document.querySelectorAll('.ev-dnd-chip').forEach(function(c){ c.classList.remove('drag-over-chip'); });
       if(!dragSrc) return;
 
       var targetZone = this.getAttribute('data-zone'); // 'main' or 'reserve'
