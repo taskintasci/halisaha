@@ -182,6 +182,13 @@
   .event-attendees{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px;margin-bottom:14px;}
   .attendee-chip{background:var(--green-dim);border:1px solid var(--green);border-radius:20px;padding:3px 10px;font-size:12px;color:var(--green);font-weight:600;}
   .attendee-chip.me{background:#00C85333;border-color:var(--green);font-weight:700;}
+  /* Admin sürükle-bırak etkinlik kadrosu */
+  .ev-dnd-zone{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px;min-height:48px;}
+  .ev-dnd-zone.drag-active{border-color:var(--green);background:#00C85310;}
+  .ev-dnd-chip{display:inline-flex;align-items:center;gap:5px;background:var(--green-dim);border:1px solid var(--green);border-radius:20px;padding:4px 10px;font-size:12px;color:var(--green);font-weight:600;cursor:grab;user-select:none;margin:3px;transition:opacity 0.15s,box-shadow 0.15s;}
+  .ev-dnd-chip.reserve-chip{background:#f5a62311;border-color:#f5a623;color:#f5a623;}
+  .ev-dnd-chip.dragging{opacity:0.35;cursor:grabbing;}
+  .ev-dnd-chip.drag-over-chip{box-shadow:0 0 0 2px var(--green);}
   .attendee-chip.no{background:#ff444411;border-color:var(--red);color:var(--red);}
   .attendee-chip.reserve{background:#f5a62311;border:1px solid #f5a623;color:#f5a623;}
   .rsvp-btn{padding:10px 24px;font-size:14px;border-radius:8px;border:2px solid var(--green);background:var(--green-dim);color:var(--green);font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:1px;cursor:pointer;text-transform:uppercase;transition:all 0.2s;}
@@ -1694,6 +1701,50 @@ function buildEventCardHTML(ev, idx, myName){
 
   var evLabel = getEvents().length > 1 ? "&#128197; Etkinlik "+(idx+1) : "&#128197; Etkinlik";
 
+  // Admin için sürükle-bırak bölümü
+  if(isAdmin && all.length > 0){
+    var mainDndChips = main.map(function(n,i){
+      return '<span class="ev-dnd-chip" draggable="true" data-name="'+n+'" data-zone="main" data-pos="'+i+'">&#9776; '+n+'</span>';
+    }).join('');
+    var rsvDndChips = rsv.map(function(n,i){
+      return '<span class="ev-dnd-chip reserve-chip" draggable="true" data-name="'+n+'" data-zone="reserve" data-pos="'+(max+i)+'">&#9203; '+(i+1)+'. '+n+'</span>';
+    }).join('');
+
+    var dndBlock = '<div style="margin-top:12px">'
+      + '<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">&#9986; Kadro D\xfczenle (S\xfcr\xfckle &amp; B\u0131rak)</div>'
+      + '<div style="display:grid;grid-template-columns:1fr'+(rsv.length?'':'')+';gap:10px">'
+      + '<div>'
+      + '<div style="font-size:11px;color:var(--green);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:5px">&#9917; Ana Kadro ('+main.length+'/'+max+')</div>'
+      + '<div class="ev-dnd-zone" id="ev-dnd-main-'+idx+'" data-zone="main" data-evid="'+idx+'">'+(mainDndChips||'<span style="font-size:11px;color:var(--muted);padding:4px">Bo\u015f</span>')+'</div>'
+      + '</div>'
+      +(rsv.length || all.length >= max
+        ? '<div style="margin-top:8px">'
+          + '<div style="font-size:11px;color:#f5a623;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:5px">&#9203; Yedek Listesi ('+rsv.length+')</div>'
+          + '<div class="ev-dnd-zone" id="ev-dnd-rsv-'+idx+'" data-zone="reserve" data-evid="'+idx+'">'+(rsvDndChips||'<span style="font-size:11px;color:var(--muted);padding:4px">Bo\u015f</span>')+'</div>'
+          + '</div>'
+        : '')
+      + '</div>'
+      + '</div>';
+
+    return "<div class=\"event-card\" id=\"ev-card-"+idx+"\" style=\"margin-bottom:12px\">"
+      + "<div style=\"display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap\">"
+      + "<div>"
+      + "<div style=\"font-family:Barlow Condensed,sans-serif;font-size:12px;font-weight:700;color:var(--green);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px\">"+evLabel+"</div>"
+      + "<div class=\"event-time\">"+(ev.timeStart||"")+" <span style=\"font-size:18px;color:var(--muted)\">&ndash;</span> "+(ev.timeEnd||"")+"</div>"
+      + "<div class=\"event-date-str\">"+(ev.dateStr||"")+" &nbsp;&middot;&nbsp; &#128205; "+(ev.location||"Hal&#305;saha")+"</div>"
+      + "</div>"
+      + "<div style=\"text-align:right\">"
+      + "<div style=\"font-family:Bebas Neue,sans-serif;font-size:36px;color:"+(full?"var(--accent)":"var(--green)")+";line-height:1\">"+main.length+"<span style=\"font-size:18px;color:var(--muted)\"> / "+max+"</span></div>"
+      + "<div style=\"font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px\">Ana Kadro</div>"
+      + "</div></div>"
+      + "<div style=\"height:5px;background:var(--bg);border-radius:3px;margin:10px 0 8px;overflow:hidden\">"
+      + "<div style=\"height:100%;width:"+pct+"%;background:linear-gradient(90deg,var(--green-dark),var(--green));border-radius:3px;transition:width 0.4s\"></div>"
+      + "</div>"
+      + dndBlock
+      + "<div style=\"margin-top:10px\">"+rsvp+"</div>"
+      + "</div>";
+  }
+
   return "<div class=\"event-card\" style=\"margin-bottom:12px\">"
     + "<div style=\"display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap\">"
     + "<div>"
@@ -1729,6 +1780,82 @@ function renderEventCard(){
     } else { el.innerHTML=html; }
   });
   updateEventNavBadge();
+  if(isAdmin) setTimeout(initEventDnd, 0);
+}
+
+function initEventDnd(){
+  if(!isAdmin) return;
+  // Her zone'a dragover/drop, her chip'e dragstart ekle
+  var dragSrc = null; // {evIdx, name}
+
+  document.querySelectorAll('.ev-dnd-chip').forEach(function(chip){
+    chip.addEventListener('dragstart', function(e){
+      dragSrc = {
+        evIdx: parseInt(this.closest('.ev-dnd-zone').getAttribute('data-evid')),
+        name: this.getAttribute('data-name')
+      };
+      this.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    chip.addEventListener('dragend', function(){
+      this.classList.remove('dragging');
+      document.querySelectorAll('.ev-dnd-zone').forEach(function(z){ z.classList.remove('drag-active'); });
+      dragSrc = null;
+    });
+  });
+
+  document.querySelectorAll('.ev-dnd-zone').forEach(function(zone){
+    zone.addEventListener('dragover', function(e){
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      this.classList.add('drag-active');
+    });
+    zone.addEventListener('dragleave', function(){
+      this.classList.remove('drag-active');
+    });
+    zone.addEventListener('drop', function(e){
+      e.preventDefault();
+      this.classList.remove('drag-active');
+      if(!dragSrc) return;
+
+      var targetZone = this.getAttribute('data-zone'); // 'main' or 'reserve'
+      var evIdx = parseInt(this.getAttribute('data-evid'));
+      if(evIdx !== dragSrc.evIdx) return; // farklı etkinlikler arası sürükleme yok
+
+      var events = getEvents();
+      var ev = events[evIdx];
+      if(!ev) return;
+      var all = (ev.attendees||[]).slice();
+      var max = ev.maxPlayers || 14;
+      var srcIdx = all.indexOf(dragSrc.name);
+      if(srcIdx < 0) return;
+
+      // Hedef pozisyonu bul: üzerine bırakılan chip'e göre veya zone'un sonuna
+      var dropChip = e.target.closest('.ev-dnd-chip');
+      var destIdx;
+      if(dropChip && dropChip.getAttribute('data-name') !== dragSrc.name){
+        destIdx = all.indexOf(dropChip.getAttribute('data-name'));
+      } else {
+        // Zone'a göre son pozisyon
+        destIdx = (targetZone === 'main') ? Math.min(max - 1, all.length - 1) : all.length - 1;
+      }
+      if(destIdx < 0 || destIdx === srcIdx) return;
+
+      // Diziyi yeniden düzenle (destIdx güncelle: srcIdx öncesiyse kayma yok, sonrasıysa -1)
+      all.splice(srcIdx, 1);
+      var adjustedDest = destIdx > srcIdx ? destIdx - 1 : destIdx;
+      if(adjustedDest < 0) adjustedDest = 0;
+      if(adjustedDest > all.length) adjustedDest = all.length;
+      all.splice(adjustedDest, 0, dragSrc.name);
+
+      ev.attendees = all;
+      state.events = events;
+      save();
+      renderEventCard();
+      renderEventAdmin();
+      // DnD listeners yeniden bağlandı (renderEventCard çağırdı)
+    });
+  });
 }
 
 function updateEventNavBadge(){
