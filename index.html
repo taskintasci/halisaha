@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Halısaha Lig Sistemi</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -139,7 +139,7 @@
   .form-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
   .form-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:130px;}
   .form-group label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
-  input,select{background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Barlow',sans-serif;font-size:14px;padding:9px 12px;outline:none;transition:border-color 0.2s;width:100%;}
+  input,select{background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Barlow',sans-serif;font-size:16px;padding:9px 12px;outline:none;transition:border-color 0.2s;width:100%;}
   input:focus,select:focus{border-color:var(--green);}
   select option{background:var(--bg2);}
   .btn{background:var(--green);color:#000;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;letter-spacing:1px;text-transform:uppercase;border:none;border-radius:6px;padding:10px 20px;cursor:pointer;transition:all 0.2s;}
@@ -938,6 +938,92 @@ function dragOver(e){
   e.currentTarget.classList.add('drag-over');
 }
 function dragLeave(e){ e.currentTarget.classList.remove('drag-over'); }
+
+// ── MOBİL DOKUNMATIK SÜRÜKLE-BIRAK (player-row) ────────────────────────────
+(function(){
+  var touchDragId=null, touchDragTeam=null, touchDragEl=null, touchClone=null;
+
+  function getPlayerRowAt(x, y){
+    var els=document.elementsFromPoint(x, y);
+    for(var i=0;i<els.length;i++){
+      if(els[i].classList&&els[i].classList.contains('player-row')&&els[i]!==touchDragEl) return els[i];
+    }
+    return null;
+  }
+
+  document.addEventListener('touchstart', function(e){
+    var row=e.target.closest('.player-row[draggable]');
+    if(!row) return;
+    touchDragId=row.dataset.id;
+    touchDragTeam=row.dataset.team;
+    touchDragEl=row;
+    row.classList.add('dragging');
+
+    // Görsel klon oluştur
+    touchClone=row.cloneNode(true);
+    touchClone.style.cssText='position:fixed;z-index:9999;pointer-events:none;opacity:0.85;width:'+row.offsetWidth+'px;background:var(--bg3);border:1px solid var(--green);border-radius:6px;padding:8px 12px;';
+    var t=e.touches[0];
+    touchClone.style.left=(t.clientX-row.offsetWidth/2)+'px';
+    touchClone.style.top=(t.clientY-24)+'px';
+    document.body.appendChild(touchClone);
+  },{passive:true});
+
+  document.addEventListener('touchmove', function(e){
+    if(!touchDragId) return;
+    e.preventDefault();
+    var t=e.touches[0];
+    if(touchClone){
+      touchClone.style.left=(t.clientX-touchClone.offsetWidth/2)+'px';
+      touchClone.style.top=(t.clientY-24)+'px';
+    }
+    document.querySelectorAll('.player-row').forEach(function(el){ el.classList.remove('drag-over'); });
+    var target=getPlayerRowAt(t.clientX, t.clientY);
+    if(target) target.classList.add('drag-over');
+  },{passive:false});
+
+  document.addEventListener('touchend', function(e){
+    if(!touchDragId){ return; }
+    if(touchClone){ touchClone.remove(); touchClone=null; }
+    if(touchDragEl) touchDragEl.classList.remove('dragging');
+    document.querySelectorAll('.player-row').forEach(function(el){ el.classList.remove('drag-over'); });
+
+    var t=e.changedTouches[0];
+    var target=getPlayerRowAt(t.clientX, t.clientY);
+    if(target && target.dataset.id && target.dataset.id!==touchDragId){
+      var dstId=target.dataset.id;
+      var dstTeam=target.dataset.team;
+      if(touchDragTeam!==dstTeam){
+        var ct=state.currentTeams;
+        if(ct){
+          var allP=[].concat(ct.teamA,ct.teamB);
+          var pSrc=allP.find(function(p){return p.id===touchDragId;});
+          var pDst=allP.find(function(p){return p.id===dstId;});
+          if(pSrc&&pDst){
+            if(touchDragTeam==='A'){
+              ct.teamA=ct.teamA.filter(function(p){return p.id!==touchDragId;});
+              ct.teamA.push(pDst);
+              ct.teamB=ct.teamB.filter(function(p){return p.id!==dstId;});
+              ct.teamB.push(pSrc);
+            } else {
+              ct.teamB=ct.teamB.filter(function(p){return p.id!==touchDragId;});
+              ct.teamB.push(pDst);
+              ct.teamA=ct.teamA.filter(function(p){return p.id!==dstId;});
+              ct.teamA.push(pSrc);
+            }
+            if(state.pendingTeams){
+              state.pendingTeams.teamAIds=ct.teamA.map(function(p){return p.id;});
+              state.pendingTeams.teamBIds=ct.teamB.map(function(p){return p.id;});
+            }
+            redrawTeams(ct.teamA, ct.teamB);
+            save();
+            renderDashboard();
+          }
+        }
+      }
+    }
+    touchDragId=null; touchDragTeam=null; touchDragEl=null;
+  },{passive:true});
+})();
 
 function dropPlayer(e){
   e.preventDefault();
@@ -1789,6 +1875,33 @@ function initEventDnd(){
   // Her zone'a dragover/drop, her chip'e dragstart ekle
   var dragSrc = null; // {evIdx, name}
 
+  function applyEvDrop(dragSrcLocal, targetZone, evIdx, dropChip){
+    var events = getEvents();
+    var ev = events[evIdx];
+    if(!ev) return;
+    var all = (ev.attendees||[]).slice();
+    var max = ev.maxPlayers || 14;
+    var srcIdx = all.indexOf(dragSrcLocal.name);
+    if(srcIdx < 0) return;
+    var destIdx;
+    if(dropChip && dropChip.getAttribute('data-name') !== dragSrcLocal.name){
+      destIdx = all.indexOf(dropChip.getAttribute('data-name'));
+    } else {
+      destIdx = (targetZone === 'main') ? Math.min(max - 1, all.length - 1) : all.length - 1;
+    }
+    if(destIdx < 0 || destIdx === srcIdx) return;
+    all.splice(srcIdx, 1);
+    var adjustedDest = destIdx > srcIdx ? destIdx - 1 : destIdx;
+    if(adjustedDest < 0) adjustedDest = 0;
+    if(adjustedDest > all.length) adjustedDest = all.length;
+    all.splice(adjustedDest, 0, dragSrcLocal.name);
+    ev.attendees = all;
+    state.events = events;
+    save();
+    renderEventCard();
+    renderEventAdmin();
+  }
+
   document.querySelectorAll('.ev-dnd-chip').forEach(function(chip){
     chip.addEventListener('dragstart', function(e){
       dragSrc = {
@@ -1813,6 +1926,55 @@ function initEventDnd(){
     chip.addEventListener('dragleave', function(){
       this.classList.remove('drag-over-chip');
     });
+
+    // ── Touch desteği (ev-dnd-chip) ──
+    chip.addEventListener('touchstart', function(e){
+      var zone = this.closest('.ev-dnd-zone');
+      dragSrc = {
+        evIdx: parseInt(zone.getAttribute('data-evid')),
+        name: this.getAttribute('data-name'),
+        el: this
+      };
+      this.classList.add('dragging');
+    },{passive:true});
+
+    chip.addEventListener('touchmove', function(e){
+      if(!dragSrc) return;
+      e.preventDefault();
+      var t = e.touches[0];
+      document.querySelectorAll('.ev-dnd-chip').forEach(function(c){ c.classList.remove('drag-over-chip'); });
+      document.querySelectorAll('.ev-dnd-zone').forEach(function(z){ z.classList.remove('drag-active'); });
+      var els = document.elementsFromPoint(t.clientX, t.clientY);
+      for(var i=0;i<els.length;i++){
+        if(els[i].classList.contains('ev-dnd-chip') && els[i]!==dragSrc.el){
+          els[i].classList.add('drag-over-chip'); break;
+        }
+        if(els[i].classList.contains('ev-dnd-zone')){
+          els[i].classList.add('drag-active'); break;
+        }
+      }
+    },{passive:false});
+
+    chip.addEventListener('touchend', function(e){
+      if(!dragSrc){ return; }
+      if(dragSrc.el) dragSrc.el.classList.remove('dragging');
+      document.querySelectorAll('.ev-dnd-zone').forEach(function(z){ z.classList.remove('drag-active'); });
+      document.querySelectorAll('.ev-dnd-chip').forEach(function(c){ c.classList.remove('drag-over-chip'); });
+      var t = e.changedTouches[0];
+      var els = document.elementsFromPoint(t.clientX, t.clientY);
+      var targetZone = null, dropChip = null, evIdx = dragSrc.evIdx;
+      for(var i=0;i<els.length;i++){
+        if(els[i].classList.contains('ev-dnd-chip') && els[i]!==dragSrc.el && !dropChip) dropChip=els[i];
+        if(els[i].classList.contains('ev-dnd-zone') && !targetZone){
+          targetZone=els[i].getAttribute('data-zone');
+          evIdx=parseInt(els[i].getAttribute('data-evid'));
+        }
+      }
+      if((dropChip||targetZone) && evIdx===dragSrc.evIdx){
+        applyEvDrop(dragSrc, targetZone||'main', evIdx, dropChip);
+      }
+      dragSrc = null;
+    },{passive:true});
   });
 
   document.querySelectorAll('.ev-dnd-zone').forEach(function(zone){
@@ -1829,43 +1991,11 @@ function initEventDnd(){
       this.classList.remove('drag-active');
       document.querySelectorAll('.ev-dnd-chip').forEach(function(c){ c.classList.remove('drag-over-chip'); });
       if(!dragSrc) return;
-
-      var targetZone = this.getAttribute('data-zone'); // 'main' or 'reserve'
+      var targetZone = this.getAttribute('data-zone');
       var evIdx = parseInt(this.getAttribute('data-evid'));
-      if(evIdx !== dragSrc.evIdx) return; // farklı etkinlikler arası sürükleme yok
-
-      var events = getEvents();
-      var ev = events[evIdx];
-      if(!ev) return;
-      var all = (ev.attendees||[]).slice();
-      var max = ev.maxPlayers || 14;
-      var srcIdx = all.indexOf(dragSrc.name);
-      if(srcIdx < 0) return;
-
-      // Hedef pozisyonu bul: üzerine bırakılan chip'e göre veya zone'un sonuna
+      if(evIdx !== dragSrc.evIdx) return;
       var dropChip = e.target.closest('.ev-dnd-chip');
-      var destIdx;
-      if(dropChip && dropChip.getAttribute('data-name') !== dragSrc.name){
-        destIdx = all.indexOf(dropChip.getAttribute('data-name'));
-      } else {
-        // Zone'a göre son pozisyon
-        destIdx = (targetZone === 'main') ? Math.min(max - 1, all.length - 1) : all.length - 1;
-      }
-      if(destIdx < 0 || destIdx === srcIdx) return;
-
-      // Diziyi yeniden düzenle (destIdx güncelle: srcIdx öncesiyse kayma yok, sonrasıysa -1)
-      all.splice(srcIdx, 1);
-      var adjustedDest = destIdx > srcIdx ? destIdx - 1 : destIdx;
-      if(adjustedDest < 0) adjustedDest = 0;
-      if(adjustedDest > all.length) adjustedDest = all.length;
-      all.splice(adjustedDest, 0, dragSrc.name);
-
-      ev.attendees = all;
-      state.events = events;
-      save();
-      renderEventCard();
-      renderEventAdmin();
-      // DnD listeners yeniden bağlandı (renderEventCard çağırdı)
+      applyEvDrop(dragSrc, targetZone, evIdx, dropChip);
     });
   });
 }
